@@ -10,10 +10,7 @@ import org.apache.james.mime4j.message.DefaultBodyDescriptorBuilder;
 import org.apache.james.mime4j.parser.MimeStreamParser;
 import org.apache.james.mime4j.stream.BodyDescriptorBuilder;
 import org.apache.james.mime4j.stream.MimeConfig;
-import org.bson.types.ObjectId;
 
-import cl.cbasoft.jre.db.Validator;
-import cl.cbasoft.jre.db.entity.DBEmail;
 import tech.blueglacier.email.Email;
 import tech.blueglacier.parser.CustomContentHandler;
 
@@ -21,14 +18,16 @@ public class SMTPInput {
 
 	public BufferedReader bufferedReader;
 	public BufferedWriter bufferedWriter;
+	public OnMail onMail;
 	
-	public static void New(BufferedReader bufferedReader, BufferedWriter bufferedWriter) throws IOException {
-		new SMTPInput(bufferedReader, bufferedWriter);
+	public static void New(OnMail onMail, BufferedReader bufferedReader, BufferedWriter bufferedWriter) throws IOException {
+		new SMTPInput(onMail, bufferedReader, bufferedWriter);
 	}
 	
-	private SMTPInput(BufferedReader bufferedReader, BufferedWriter bufferedWriter) throws IOException {
+	private SMTPInput(OnMail onMail, BufferedReader bufferedReader, BufferedWriter bufferedWriter) throws IOException {
 		this.bufferedReader = bufferedReader;
 		this.bufferedWriter = bufferedWriter;
+		this.onMail 		= onMail;
 		listen();
 	}
 	
@@ -51,7 +50,7 @@ public class SMTPInput {
 	}
 	
 	private void RCPT(String rcpt) throws IOException {
-		boolean ok  = Validator.ValidateRcpt(rcpt);
+		boolean ok  = this.onMail.rcpt(rcpt);
 		if (ok) {
 			SMTPServer.WriteLine(250, "OK MY FRIEND", bufferedWriter);
 		} else {
@@ -96,9 +95,8 @@ public class SMTPInput {
 		try {
 			mime4jParser.parse(baos.toInputStream());
 			Email email = contentHandler.getEmail();
-			ObjectId emailId = DBEmail.Storage(email);
-			
-			SMTPServer.WriteLine(250, "OK ID: " + emailId, bufferedWriter);
+			String id   = this.onMail.newEmail(email);
+			SMTPServer.WriteLine(250, "OK ID:" + id, bufferedWriter);
 		} catch (Exception ex) {
 			ex.printStackTrace();
 			throw new SMTPException(501, "SORRY I DON'T UNDERSTAND YOU :(", bufferedWriter);

@@ -1,4 +1,5 @@
 package cl.cbasoft.jre;
+
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.IOException;
@@ -9,31 +10,9 @@ import java.io.OutputStreamWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 
-import cl.cbasoft.jre.db.MongoDB;
-import cl.cbasoft.jre.db.Validator;
-
 public class SMTPServer {
-
-	public static void main(String[] args) throws Exception {
-		StartDBConnecion();
 		
-		while (true) {
-			try {
-				StartServer();
-			} catch (Exception ex) {
-				ex.printStackTrace();
-				Thread.sleep(5000);
-			}
-		}
-	}
-	
-	private static void StartDBConnecion() throws Exception {
-		MongoDB.MONGO_URI = System.getenv("MONGO_URI");
-		if (MongoDB.MONGO_URI == null)
-			throw new Exception("MONGO_URI IS NULL");
-	}
-	
-	private static void StartServer() throws IOException {
+	public static void Start(final OnMail onMail) throws IOException {
 		ServerSocket server = new ServerSocket(25);
 		try {
 			while (true) {
@@ -41,7 +20,10 @@ public class SMTPServer {
 				new Thread(new Runnable() {
 					@Override
 					public void run() {
-						NewConnection(socket);
+						boolean permit = onMail.newConnection(socket);
+						if (permit) {
+							NewConnection(socket, onMail);
+						}
 					}
 				}).start();
 			}
@@ -50,7 +32,7 @@ public class SMTPServer {
 		}
 	}
 	
-	private static void NewConnection(Socket socket) {
+	private static void NewConnection(Socket socket, OnMail onMail) {
 		OutputStream outputStream;
 		InputStream inputStream;
 
@@ -64,19 +46,19 @@ public class SMTPServer {
 			bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
 			
 			WriteLine(220, "READY FOR YOU", bufferedWriter);
-			EHLO(bufferedReader, bufferedWriter);
+			EHLO(onMail, bufferedReader, bufferedWriter);
 			
 			String nextLine = bufferedReader.readLine();
 			if (!nextLine.toUpperCase().startsWith("MAIL FROM:")) {
 				throw new SMTPException(501, "FROM IS NOT VALID", bufferedWriter);
 			}
 			
-			boolean isFromValid = Validator.ValidateFrom(nextLine);
+			boolean isFromValid = onMail.from(nextLine);
 			if (!isFromValid) {
 				throw new SMTPException(501, "FROM IS NOT VALID", bufferedWriter);
 			}
 			SMTPServer.WriteLine(250, "OK MY FRIEND", bufferedWriter);
-			SMTPInput.New(bufferedReader, bufferedWriter);
+			SMTPInput.New(onMail, bufferedReader, bufferedWriter);
 			
 		} catch (Exception ex) {
 			if (ex instanceof SMTPException) {
@@ -89,7 +71,7 @@ public class SMTPServer {
 		}
 	}
 	
-	private static void EHLO(BufferedReader bufferedReader, BufferedWriter bufferedWriter) throws IOException {
+	private static void EHLO(OnMail onMail, BufferedReader bufferedReader, BufferedWriter bufferedWriter) throws IOException {
 		String ehlo  = bufferedReader.readLine();
 		boolean isOK = true;
 		
@@ -106,7 +88,7 @@ public class SMTPServer {
 				}
 
 				String domain = params[1];
-				isOK = Validator.ValidateDomain(domain);
+				isOK = onMail.domain(domain);
 			}
 		}
 		if (isOK) {

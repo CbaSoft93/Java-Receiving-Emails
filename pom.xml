@@ -3,21 +3,38 @@
   <groupId>cl.cbasoft</groupId>
   <artifactId>java-receiving-emails</artifactId>
   <version>1.0.0</version>
+  
   <properties>
 	<maven.compiler.source>1.8</maven.compiler.source>
 	<maven.compiler.target>1.8</maven.compiler.target>
   </properties>
+  
   <dependencies>
  	<dependency>
 	  <groupId>tech.blueglacier</groupId>
 	  <artifactId>email-mime-parser</artifactId>
 	  <version>1.0.5</version>
 	</dependency>
-	
-	<dependency>
-        <groupId>org.mongodb</groupId>
-        <artifactId>mongodb-driver-sync</artifactId>
-        <version>3.12.5</version>
-    </dependency>
   </dependencies>
+  
+  <build>
+	<resources>
+		<resource>
+			<directory>src/main/java</directory>
+			<filtering>false</filtering>
+		</resource>
+		<resource>
+			<directory>src/main/resources</directory>
+			<filtering>false</filtering>
+		</resource>
+	</resources>
+  </build>
+  
+  <distributionManagement>
+  	<repository>
+	    <id>github</id>
+	    <name>GitHub CbaSoft93 Apache Maven Packages</name>
+	    <url>https://maven.pkg.github.com/CbaSoft93/Java-Receiving-Emails/</url>
+  	</repository>
+  </distributionManagement>
 </project>
